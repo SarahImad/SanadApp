@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "c060e485-e8e3-45bb-bae2-7525b0116dad"
+      }
+    },
+    "android": {
+      "package": "com.sarahamdan.sttttt"
+    },
+    "ios": {
+      "bundleIdentifier": "com.sarahamdan.sttttt",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <script>
+    const expoUrl = 'exp://u.expo.dev/78ceffab-9194-4b8e-ba2f-dd08b1e8db99?release-channel=master';
+    const fallbackUrl = 'https://expo.dev/download'; // Expo Go download
+    window.location = expoUrl;
+    setTimeout(() => {
+      if (document.hasFocus()) {
+        window.location = fallbackUrl;
+      }
+    }, 1000);
+  </script>
+</body>
+</html>

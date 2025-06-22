@@ -1,0 +1,1850 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  StyleSheet, 
+  View, 
+  ImageBackground, 
+  Animated,  
+  TouchableOpacity, 
+  Text, 
+  Modal, 
+  ActivityIndicator,
+  Image,
+  Dimensions
+} from 'react-native';
+import * as ScreenOrientation from 'expo-screen-orientation';
+import { Video, Audio, ResizeMode  } from 'expo-av';
+import { transcribeSpeech } from '@/functions/transcribeSpeech';
+import { recordSpeech } from '@/functions/recordSpeech';
+import useWebFocus from '@/hooks/useWebFocus';
+import { useNavigation } from '@react-navigation/native';
+import { Link } from 'expo-router'; 
+import { Easing } from 'react-native';
+import { useWindowDimensions } from 'react-native';
+
+/*
+interface ImageItem {
+  source: any;
+  label: string;
+  number: number;
+  moveX: number;
+  moveY: number;
+}
+
+interface Question {
+  video: any;
+  correctAnswer: string;
+  acceptedPronunciations: string[];
+  images: ImageItem[];
+}
+
+*/
+
+const questions = [
+  {
+    video: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740513244/dog_ki8bpz.mp4' },
+    correctAnswer: 'dog', 
+    acceptedPronunciations: ['four', 'for', '4'], 
+    images: [
+      //{ source: require('./V2Pictures/dear.png'), label: 'dear' , number: 2, moveX: 70, moveY: 80 },
+      { source:{ uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1740528012/dear_ks4jxe.png' }, label: 'dear' , number: 2, moveX: 7, moveY: 10  },
+
+      //{ source: require('./V2Pictures/tiger.png'), label: 'tiger', number: 1, moveX: -120, moveY: 80 },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1740528121/tiger_v28o1o.png'}, label: 'tiger', number: 1, moveX: -8, moveY: 10 },
+
+      //{ source: require('./V2Pictures/dog.png'), label: 'dog', number: 4, moveX: 70, moveY: -100 },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1740528127/dog_sfpykb.png'}, label: 'dog', number: 4, moveX: 6, moveY: -12 },
+
+      //{ source: require('./V2Pictures/cat.png'), label: 'cat', number: 3, moveX: -120, moveY: -100 },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1740528137/cat_sqhval.png'}, label: 'cat', number: 3, moveX: -9, moveY: -12 },
+    ],
+    //{ uri: ''},
+  },{
+    video: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740519486/mom2_yow1aa.mp4'},
+    images: [
+    //{ source: require('./V2Pictures/mom.png'), label: 'mother', number: 2 , moveX: 70, moveY: 80},
+    { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1740528271/mom_g7kjth.png'}, label: 'mother', number: 2 , moveX: 7, moveY: 10 },
+
+    //{ source: require('./V2Pictures/father.png'), label: 'father', number: 1, moveX: -120, moveY: 80 },
+    { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1740528277/father_inwcgr.png'}, label: 'father', number: 1, moveX: -8, moveY: 10 },
+
+    //{ source: require('./V2Pictures/boy.png'), label: 'boy', number: 4, moveX: 70, moveY: -100 },
+    { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1740528290/boy_uzj3vf.png'}, label: 'boy', number: 4, moveX: 6, moveY: -12 },
+
+    //{ source: require('./V2Pictures/girl.png'), label: 'girl', number: 3, moveX: -120, moveY: -100  }
+    { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1740528282/girl_moevoz.png'}, label: 'girl', number: 3, moveX: -9, moveY: -12  }
+     ],
+    correctAnswer: 'mother',
+    acceptedPronunciations: ['two', 'too', 'to', '2'], 
+  },  
+  { 
+    video: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740519560/q3v2_ytimjn.mp4'},
+    correctAnswer: 'Laughing',
+    acceptedPronunciations: ['one', 'wan', '1'], 
+    images: [
+    //  { source: require('./V2Pictures/download (1).webp'), label: 'crying', number: 2, moveX: 7, moveY: 10  },
+    { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036691/download_1_f49w9m.webp'}, label: 'crying', number: 2, moveX: 7, moveY: 10  },
+
+    //  { source: require('./V2Pictures/Laughing.png'), label: 'Laughing', number: 1,moveX: -8, moveY: 10 },
+    { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036697/Laughing_bsyliz.png'}, label: 'Laughing', number: 1,moveX: -8, moveY: 10 },
+
+    //  { source: require('./V2Pictures/happy.png'), label: 'happy', number: 4 , moveX: 6, moveY: -12},
+    { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036696/happy_cxpqoi.png'}, label: 'happy', number: 4 , moveX: 6, moveY: -12},
+
+    //  { source: require('./V2Pictures/bored.png'), label: 'bored', number: 3, moveX: -9, moveY: -12   }
+    { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036691/bored_dwor9n.png'}, label: 'bored', number: 3, moveX: -9, moveY: -12   }
+   ]
+  }, //{ uri: ''}
+  { 
+   // video: require('./v2Videos/q4v3.mp4'),
+   video: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740519674/q4v3_finaoi.mp4'},
+
+    correctAnswer: 'baloon',
+    acceptedPronunciations: ['one', 'wan', '1'], // Array of valid pronunciations for the number 1
+    images: [
+      //{ source: require('./V2Pictures/girlDoll.png'), label: 'girlDoll', number: 2, moveX: 7, moveY: 10  },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036694/girlDoll_u4dnks.png'}, label: 'girlDoll', number: 2, moveX: 7, moveY: 10  },
+
+      //{ source: require('./V2Pictures/baloon.png'), label: 'baloon', number: 1, moveX: -8, moveY: 10 },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036689/baloon_lxzufm.png'}, label: 'baloon', number: 1, moveX: -8, moveY: 10 },
+
+     // { source: require('./V2Pictures/toy.png'), label: 'toy', number: 4 , moveX: 6, moveY: -12},
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036699/toy_qgi0r4.png'}, label: 'toy', number: 4 , moveX: 6, moveY: -12},
+
+     // { source: require('./V2Pictures/carToy.png'), label: 'carToy', number: 3, moveX: -9, moveY: -12  }
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036697/carToy_wfmqz8.png'}, label: 'carToy', number: 3, moveX: -9, moveY: -12  }
+
+
+   ]
+  },
+  {
+    video: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740519705/q5v2_jemisr.mp4'},
+    //video: require('./v2Videos/q5v2.mp4'),
+    images: [
+      //{ source: require('./V2Pictures/V.png'), label: 'V', number: 2, moveX: 7, moveY: 10  },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036699/V_nwlpfn.png'}, label: 'V', number: 2, moveX: 7, moveY: 10  },
+
+     //{ source: require('./V2Pictures/traingle.png'), label: 'traingle', number: 1, moveX: -8, moveY: 10 },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741037235/traingle_iu3tjv.png'}, label: 'traingle', number: 1, moveX: -8, moveY: 10 },
+
+     // { source: require('./V2Pictures/circle.png'), label: 'circle', number: 4 , moveX: 6, moveY: -12},
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036694/circle_doiltc.png'}, label: 'circle', number: 4 , moveX: 6, moveY: -12},
+
+     // { source: require('./V2Pictures/Aenglish.png'), label: 'A', number: 3 , moveX: -9, moveY: -12}
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036689/Aenglish_ugd4zs.png'}, label: 'A', number: 3 , moveX: -9, moveY: -12}
+
+   ],
+    correctAnswer: 'A',
+    acceptedPronunciations: ['three', 'thre', '3'], 
+
+  },
+  {
+    video: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740519719/q6v2_jgsoxh.mp4'},
+
+   // video: require('./v2Videos/q6v2.mp4'),
+    images: [
+     /* { source: require('./V2Pictures/short.png'), label: 'short', number: 2, moveX: 7, moveY: 10  },
+      { source: require('./V2Pictures/boldshort.png'), label: 'boldshort', number: 1, moveX: -8, moveY: 10 },
+      { source: require('./V2Pictures/long.png'), label: 'long', number: 4 , moveX: 6, moveY: -10},
+      { source: require('./V2Pictures/zegzag.png'), label: 'zegzag', number: 3, moveX: -9, moveY: -12 }*/
+
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036698/short_yykfze.png'}, label: 'short', number: 2, moveX: 7, moveY: 10  },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036689/boldshort_r2utah.png'}, label: 'boldshort', number: 1, moveX: -8, moveY: 10 },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036695/long_hujumx.png'}, label: 'long', number: 4 , moveX: 6, moveY: -10},
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036700/zegzag_upgvgw.png'}, label: 'zegzag', number: 3, moveX: -9, moveY: -12 }
+    ],
+    correctAnswer: 'long',
+    acceptedPronunciations: ['four', 'for', '4'], 
+  },
+  {
+    video: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740519802/q7v2_q3qies.mp4'},
+    //video: require('./v2Videos/q7v2.mp4'),
+    images: [
+     /* { source: require('./V2Pictures/playing.png'), label: 'playing', number: 2, moveX: 7, moveY: 10  },
+      { source: require('./V2Pictures/standing.png'), label: 'standing', number: 1, moveX: -8, moveY: 10 },
+      { source: require('./V2Pictures/cooking.png'), label: 'cooking', number: 4 , moveX: 6, moveY: -10},
+      { source: require('./V2Pictures/cleaning.png'), label: 'cleaning', number: 3 , moveX: -9, moveY: -12 }*/
+
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036699/playing_lc8f4f.png'}, label: 'playing', number: 2, moveX: 7, moveY: 10  },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036703/standing_byrpcm.png'}, label: 'standing', number: 1, moveX: -8, moveY: 10 },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036689/cooking_nfarkm.png'}, label: 'cooking', number: 4 , moveX: 6, moveY: -10},
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036689/cleaning_vxip0q.png'}, label: 'cleaning', number: 3 , moveX: -9, moveY: -12 }
+    ],
+    correctAnswer: 'cooking',
+    acceptedPronunciations: ['four', 'for', '4'], 
+
+  },
+  {
+
+    //video: require('./v2Videos/q8v3.mp4'),
+    video: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740519842/q8v3_g2btyx.mp4'},
+
+    images: [
+   /*   { source: require('./V2Pictures/washing.png'), label: 'washing machine', number: 2, moveX: 7, moveY: 10  },
+      { source: require('./V2Pictures/toaster.png'), label: 'deep', number: 1, moveX: -8, moveY: 10 },
+      { source: require('./V2Pictures/microwave.png'), label: 'microwave', number: 4, moveX: 6, moveY: -10 },
+      { source: require('./V2Pictures/fridge.png'), label: 'Fridge', number: 3 , moveX: -9, moveY: -12}*/
+
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036703/washing_a7tadq.png'}, label: 'washing machine', number: 2, moveX: 7, moveY: 10  },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036698/toaster_fqrntj.png'}, label: 'deep', number: 1, moveX: -8, moveY: 10 },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036699/microwave_gdmw5m.png'}, label: 'microwave', number: 4, moveX: 6, moveY: -10 },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036694/fridge_dx4ffl.png'}, label: 'Fridge', number: 3 , moveX: -9, moveY: -12}
+    ],
+    correctAnswer: 'Fridge' ,
+    acceptedPronunciations: ['three', 'thre', '3'], 
+  }
+];
+
+
+const videoMappings: { [key: number]: { correct: any; incorrect?: any } } = {
+  //0: { correct: require('./v2Videos/q1correct1.mp4'), incorrect: require('./v2Videos/q1wrong1.mp4') },
+  0: { correct: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740522983/q1correct1_ygbefw.mp4'}, incorrect: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740523126/q1wrong1_cafcl6.mp4'} },
+
+//1: { correct: require('./v2Videos/q2correct.mp4'), incorrect: require('./v2Videos/q2wrong.mp4') },
+  1: { correct: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740523229/q2correct_sjttff.mp4'}, incorrect: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740523237/q2wrong_xwbvpy.mp4'} },
+
+//2: { correct: require('./v2Videos/q3c.mp4'), incorrect: require('./v2Videos/q3wrong.mp4') },
+2: { correct: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740523450/q3c_npwerk.mp4'}, incorrect: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740523461/q3wrong_rdogdn.mp4'} },
+
+//3: { correct: require('./v2Videos/q4correct1.mp4'), incorrect: require('./v2Videos/q4wrong2.mp4') },
+3: { correct: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740523518/q4correct1_p95eif.mp4'} , incorrect: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740523527/q4wrong2_vfyxj5.mp4'}  },
+
+//4: { correct: require('./v2Videos/q5correct1.mp4'), incorrect: require('./v2Videos/q5wrong1.mp4') },
+4: { correct: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740523566/q5correct1_nhlatk.mp4'} , incorrect: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740523574/q5wrong1_trqhai.mp4'}  },
+
+//5: { correct: require('./v2Videos/q6correct.mp4'), incorrect: require('./v2Videos/q6wrong2.mp4') },
+5: { correct: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740523622/q6correct_xhamew.mp4'} , incorrect: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740523632/q6wrong2_czmoir.mp4'} },
+
+//6: { correct: require('./v2Videos/q7correct1.mp4'), incorrect: require('./v2Videos/q7wrong1.mp4') },
+6: { correct: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740523707/q7correct1_b7jzfy.mp4'} , incorrect: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740523714/q7wrong1_ddxczw.mp4'}  },
+
+//7: { correct: require('./v2Videos/q8correct1.mp4'), incorrect: require('./v2Videos/q8wrong1.mp4') },
+7: { correct: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740523722/q8correct1_ovtlui.mp4'} , incorrect: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740523743/q8wrong1_wr6qzq.mp4'}  },
+
+//8: { correct: require('./v2Videos/errorr.mp4') }
+8: { correct: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740523815/errorr_ugzpbz.mp4'}  }
+};
+
+const wordToNumberMap: { [key: string]: number } = {
+  "one": 1,
+  "two": 2,
+  "three": 3,
+  "four": 4,
+};
+
+export default function App() {
+  const [transcriptionText, setTranscriptionText] = useState("");
+
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
+  const [videoSource, setVideoSource] = useState<any>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [testFinished, setTestFinished] = useState(false);
+  const [correctAnswers, setCorrectAnswers] = useState(0);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  
+  const audioRecordingRef = useRef(new Audio.Recording());
+  const webAudioPermissionsRef = useRef<MediaStream | null>(null);
+  const videoRef = useRef<Video>(null);
+  const isWebFocused = useWebFocus();
+  const navigation = useNavigation();
+  const [showGrid, setShowGrid] = useState(true); 
+  const [isQuizComplete, setIsQuizComplete] = useState(false);
+  const videoScale = useRef(new Animated.Value(1)).current;
+  const videoTranslateX = useRef(new Animated.Value(0)).current;
+  const [showButtons, setShowButtons] = useState(true);
+  const { width, height } = Dimensions.get('window');
+  const fontSizePercentage = 0.018;  
+  const dynamicFontSize = width * fontSizePercentage; 
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const [listeningTimeout, setListeningTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [errorTimeout, setErrorTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [isAutoRecording, setIsAutoRecording] = useState(false);
+
+//Used for responsivness
+const getMoveX = (moveXPercent: number) => (moveXPercent / 100) * screenWidth;
+const getMoveY = (moveYPercent: number) => (moveYPercent / 100) * screenHeight;
+
+
+
+  const [animationValues] = useState<Animated.Value[]>(
+    questions[0].images.map(() => new Animated.Value(1))
+  );
+
+  useEffect(() => {
+    const lockOrientation = async () => {
+      await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+    };
+    lockOrientation();
+    setVideoSource(questions[currentQuestionIndex].video);
+  }, [currentQuestionIndex]);
+
+  useEffect(() => {
+    const handleQuestionStart = async () => {
+      if (listeningTimeout) clearTimeout(listeningTimeout);
+      if (errorTimeout) clearTimeout(errorTimeout);
+  
+      try {
+        // Wait 5 seconds before starting recording
+        const startTimeout = setTimeout(async () => {
+          setIsAutoRecording(true);
+          await startRecording();
+  
+          // Stop recording 5 seconds after it starts
+          const stopTimeout = setTimeout(async () => {
+            await stopRecording();
+            setIsAutoRecording(false);
+          }, 5000);
+  
+          setListeningTimeout(stopTimeout);
+        }, 5000);
+  
+        setListeningTimeout(startTimeout);
+      } catch (error) {
+        console.error("Error starting automatic recording:", error);
+      }
+    };
+  
+    if (showGrid && !isQuizComplete) {
+      handleQuestionStart();
+    }
+  
+    return () => {
+      if (listeningTimeout) clearTimeout(listeningTimeout);
+      if (errorTimeout) clearTimeout(errorTimeout);
+    };
+  }, [currentQuestionIndex, showGrid]);
+
+  useEffect(() => {
+    if (isWebFocused) {
+      const getMicAccess = async () => {
+        const permissions = await navigator.mediaDevices.getUserMedia({ audio: true });
+        webAudioPermissionsRef.current = permissions;
+      };
+      if (!webAudioPermissionsRef.current) getMicAccess();
+    } else {
+      webAudioPermissionsRef.current?.getTracks().forEach(track => track.stop());
+      webAudioPermissionsRef.current = null;
+    }
+  }, [isWebFocused]);
+
+  const startRecording = async () => {
+    setIsRecording(true);
+    await recordSpeech(audioRecordingRef, setIsRecording, !!webAudioPermissionsRef.current);
+  };
+
+  const stopRecording = async () => {
+    setIsRecording(false);
+    setIsTranscribing(true);
+    try {
+      const speechTranscript = await transcribeSpeech(audioRecordingRef);
+      setTranscriptionText(speechTranscript || ""); // Add this line
+      processTranscription(speechTranscript || "");
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+  const clearTranscription = () => {
+    setTranscriptionText("");
+  };
+  const processTranscription = (transcription: string) => {
+    const currentQuestion = questions[currentQuestionIndex];
+    const transcriptionTrimmed = transcription.trim().toLowerCase().replace(/[^a-zA-Z0-9\s]/g, '');
+    
+    // Clear existing timeouts
+    if (listeningTimeout) clearTimeout(listeningTimeout);
+    if (errorTimeout) clearTimeout(errorTimeout);
+  
+    // If no transcription detected after timeout
+    if (!transcriptionTrimmed) {
+      handleInvalidAnswer();
+      return;
+    }
+  
+    console.log('Processing transcription:', transcriptionTrimmed);
+  
+    // Extract numbers using both word and digit patterns
+    const numberWords = Object.keys(wordToNumberMap).join('|');
+    const numberPattern = `\\b(${numberWords}|\\d+)\\b`;
+    const numberRegex = new RegExp(numberPattern, 'gi');
+    const matches = transcriptionTrimmed.match(numberRegex);
+  
+    let selectedNumber: number | undefined;
+  
+    if (matches && matches.length > 0) {
+      // Get first valid number match
+      const firstMatch = matches[0].toLowerCase();
+      selectedNumber = wordToNumberMap[firstMatch] || parseInt(firstMatch, 10);
+      
+      // Validate number range
+      if (isNaN(selectedNumber)) selectedNumber = undefined;
+      if (selectedNumber && ![1, 2, 3, 4].includes(selectedNumber)) selectedNumber = undefined;
+    }
+  
+    console.log('Selected number:', selectedNumber);
+  
+    if (!selectedNumber) {
+      console.log('No valid number detected - retrying');
+      handleInvalidAnswer();
+      return;
+    }
+  
+    // Clear timeouts since we got valid input
+    if (listeningTimeout) clearTimeout(listeningTimeout);
+  
+    // Process valid number
+    const selectedImage = currentQuestion.images.find(image => image.number === selectedNumber);
+    
+    if (selectedImage) {
+      handleImageSelect(selectedImage.label);
+    } else {
+      console.log('No matching image found - invalid answer');
+      handleInvalidAnswer();
+    }
+  };
+
+  const handleInvalidAnswer = () => {
+    setVideoSource(videoMappings[8].correct);
+  
+    // Set timeout to retry after 5 seconds
+    const timeout = setTimeout(async () => {
+      try {
+        setVideoSource(questions[currentQuestionIndex].video);
+        await videoRef.current?.replayAsync();
+  
+        // Wait 5 seconds before starting recording
+        const startTimeout = setTimeout(async () => {
+          setIsAutoRecording(true);
+          await startRecording();
+  
+          // Stop recording 5 seconds after it starts
+          const stopTimeout = setTimeout(async () => {
+            await stopRecording();
+            setIsAutoRecording(false);
+          }, 5000);
+  
+          setListeningTimeout(stopTimeout);
+        }, 9000);
+  
+        setListeningTimeout(startTimeout);
+      } catch (error) {
+        console.error("Error restarting recording:", error);
+      }
+    }, 9000);
+  
+    setErrorTimeout(timeout);
+  };
+
+  useEffect(() => {
+    const loadVideo = async () => {
+      try {
+        await videoRef.current?.loadAsync(questions[currentQuestionIndex].video, {}, false);
+      } catch (error) {
+        console.error('Video loading error:', error);
+      }
+    };
+    loadVideo();
+  }, [currentQuestionIndex]); 
+  
+  const handleImageSelect = (selectedLabel: string) => {
+    const currentQuestion = questions[currentQuestionIndex];
+    const correct = selectedLabel === currentQuestion.correctAnswer;
+    setIsCorrect(correct);
+    
+    if (correct) setCorrectAnswers(prev => prev + 1);
+
+    const videoMapping = videoMappings[currentQuestionIndex] || { correct: null, incorrect: null };
+    setVideoSource(correct ? videoMapping.correct : videoMapping.incorrect);
+    setSelectedImage(selectedLabel);
+
+    handleAnimation(selectedLabel);
+    setTimeout(() => !correct && handleAnimation(currentQuestion.correctAnswer), 4500);
+    setTimeout(() => handleQuestionTransition(), 7000);
+  };
+
+
+  const hidebuttons = () => setShowButtons(false);
+
+  const moveXValue = getMoveX(19);
+
+  const handleQuestionTransition = () => {
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex(prev => prev + 1);
+      setTimeout(() => {
+        resetAnimations();
+        setSelectedImage(null);
+        clearTranscription();
+      }, 10);
+    } else {
+      //alert('Quiz Complete!');
+     // navigation.navigate('Set1');>
+     setShowGrid(false);  
+     hidebuttons();
+     setVideoSource({ uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740869604/toSet1_nrxrmy.mp4' });
+
+     Animated.parallel([
+      Animated.timing(videoScale, {
+        toValue: 1.5,
+        duration: 1000,
+        useNativeDriver: true,
+         easing: Easing.bezier(0.25, 0.1, 0.25, 1), 
+      }),
+      Animated.timing(videoTranslateX, {
+        toValue: moveXValue, 
+        duration: 1000,
+        useNativeDriver: true,
+      })
+    ]).start(() => setIsQuizComplete(true));
+  }
+};
+
+
+
+  const handleAnimation = (selectedLabel: string) => {
+    questions[currentQuestionIndex].images.forEach((image, index) => {
+      if (image.label === selectedLabel) {
+        Animated.spring(animationValues[index], {
+          toValue: 1.5,
+          useNativeDriver: true,
+        }).start();
+      } else {
+        Animated.timing(animationValues[index], {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }).start();
+      }
+    });
+  };
+
+  const resetAnimations = () => {
+    animationValues.forEach(value => {
+      Animated.timing(value, {
+        toValue: 1,
+        duration: 0,
+        useNativeDriver: true,
+      }).start();
+    });
+  };
+
+  const handleStopTest = () => {
+    setTestFinished(true);
+    setModalVisible(true);
+    videoRef.current?.stopAsync();
+  };
+
+  const handleGoToResults = () => {
+    alert(`You got ${correctAnswers} out of ${questions.length} correct!`);
+    setModalVisible(false);
+  };
+
+  const handleContinueTest = () => {
+    setTestFinished(false);
+    setModalVisible(false);
+    setCurrentQuestionIndex(0);
+    setCorrectAnswers(0);
+  };
+
+  return ( 
+    <View style={styles.container}>
+      <ImageBackground
+        source={{ uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036689/backgroundnew_cbi5vb.jpg' }}
+        style={styles.background}
+        resizeMode="stretch"
+      >
+
+{showGrid && (
+  <View style={styles.gridContainer}>
+    {questions[currentQuestionIndex].images.map((item, index) => (
+      <TouchableOpacity
+        key={index}
+        style={[
+          styles.gridItem,
+          { borderWidth: selectedImage ? 0 : 5, borderColor: 'rgba(225, 233, 226, 0.5)' },
+        ]}
+        onPress={() => handleImageSelect(item.label)}
+      >
+        <Animated.Image
+          source={item.source}
+          style={[
+            styles.image,
+            {
+              transform: [
+                { scale: animationValues[index] },
+                { 
+                  translateX: animationValues[index].interpolate({
+                    inputRange: [1, 1.5],
+                    outputRange: [0, getMoveX(item.moveX)], 
+                  })
+                },
+                { 
+                  translateY: animationValues[index].interpolate({
+                    inputRange: [1, 1.5],
+                    outputRange: [0, getMoveY(item.moveY)], 
+                  })
+                },
+              ],
+              opacity: animationValues[index],
+            },
+          ]}
+        />
+        {!selectedImage && (
+          <View style={styles.circle}>
+            <Text style={styles.circleText}>{item.number}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    ))}
+  </View>
+)}
+
+{showButtons && <View style={styles.verticalLine} />}
+
+<Animated.View style={[
+  styles.video,
+  {
+    transform: [
+      { scale: videoScale },
+      { translateX: videoTranslateX }
+    ]
+  }
+]}>
+  <Video
+    ref={videoRef}
+    source={videoSource}
+    style={styles.video}
+    useNativeControls={false}
+    resizeMode={ResizeMode.CONTAIN}
+    isLooping={false}
+    shouldPlay={true}
+  />
+</Animated.View>
+
+{isQuizComplete && (
+  <Link href="/v1/set1" asChild>
+    <TouchableOpacity style={styles.startButton}>
+      <Text style={styles.startButtonText}>Start Set 1</Text>
+    </TouchableOpacity>
+  </Link>
+)}
+
+    {showButtons && (
+  <View style={[styles.header, {
+    position: 'absolute',
+    top: '48%', 
+    width: '100%',
+    zIndex: 3,
+    elevation: 3,
+  }]}>
+    <TouchableOpacity 
+      style={[styles.stopButton, {
+        position: 'absolute',
+        right: '67%',
+        top: '340%',
+        zIndex: 4,
+        backgroundColor: '#e1e9e2', 
+        padding: 6,
+      }]} 
+      onPress={handleStopTest}
+    >
+      <Text  style={[styles.stopButtonText, { color: 'rgb(132, 154, 139)'  , fontSize: dynamicFontSize}]}>
+        Stop Test
+      </Text>
+    </TouchableOpacity>
+
+    <TouchableOpacity
+      style={[styles.replayIconContainer, {
+        position: 'absolute',
+        top: '200%',
+        right: '60%',
+        zIndex: 3,
+      }]}
+      onPress={() => videoRef.current?.replayAsync()}
+    >
+      <Image
+        source={{ uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036697/replay_iwjla6.png' }}
+        style={[styles.replayIcon, {
+          width: '100%',
+          height: '100%',
+          resizeMode: 'contain',
+        }]}
+      />
+    </TouchableOpacity>
+  </View>
+)}
+
+{showButtons && (
+  <View style={{
+    position: 'absolute', 
+    right: '73%',
+    bottom: '22%',
+    width: '12%', 
+    height: '12%', 
+    zIndex: 3,
+  }}>
+    <Image 
+      source={isAutoRecording 
+        ? { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036696/open_cmubmo.png' }
+        : { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036687/closed_umbdzh.png' }}
+      style={{     
+        width: '100%', 
+        height: '100%',
+        resizeMode: 'contain',
+      }}
+    />
+    {isAutoRecording && (
+      <ActivityIndicator style={styles.micActivity} color="white" />
+    )}
+  </View>
+)}
+
+{showButtons && (
+  <Text style={styles.footerText}>
+    Question {currentQuestionIndex + 1} of {questions.length}
+  </Text>
+)}  
+        <View style={styles.header}>
+
+
+          <Modal visible={modalVisible} transparent={true} animationType="fade">
+            <View style={styles.modalBackground}>
+              <View style={styles.modalBox}>
+                <Text style={styles.modalText}>
+                  {testFinished
+                    ? `This is the trail set of the test!`
+                    : "Do you want to stop the test?"}
+                </Text>
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity onPress={handleGoToResults}>
+                    <Text style={styles.modalButton}>Results</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={handleContinueTest}>
+                    <Text style={styles.modalButton}>Continue</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
+        </View>
+
+      
+
+        <Text style={styles.footerText}>
+          Question {currentQuestionIndex + 1} of {questions.length}
+        </Text>
+      </ImageBackground>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  startButton: {
+    position: 'absolute',
+    bottom: '14%',
+    alignSelf: 'center',
+    backgroundColor: 'rgb(225, 233, 226)',
+    padding: '2%',
+    borderRadius: 25,
+    width: '30%',
+    alignItems: 'center',
+    zIndex: 2,
+    left: '36%'
+  },
+  startButtonText: {
+    color: 'rgb(132, 154, 139)',
+    fontSize: 20,
+    fontWeight: 'bold',
+    
+  },
+  background: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  gridContainer: {
+    flex: 1,
+    position: 'absolute',
+    top: '15%',
+    left: '47%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '42%',  
+    height: '20%',
+    zIndex: 3,
+  },
+  gridItem: {
+    width: '45%',
+    height: '160%',
+    marginVertical: 15,
+    marginHorizontal: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 35,
+  },
+  image: {
+    width: '80%',
+    height: '80%',
+    resizeMode: 'contain',
+  },
+  video: {
+    width: '60%',
+    height: '60%',
+    position: 'absolute',
+    left: '6%',
+    top: '15%',
+    zIndex: 1,
+  },
+
+  micActivity: {
+    position: 'absolute',
+  },
+  mic : {
+    left: '8%',
+    top: '65%',
+    zIndex: 3,
+  },
+  footerText: {
+    position: 'absolute',
+    bottom: 20,
+    left: '40%',
+    fontSize: 18,
+    color: '#fff',
+  },
+  verticalLine: {
+    borderRightWidth: 5,
+    borderRightColor: 'rgba(225, 233, 226, 0.5)',
+    height: '50%',
+    position: 'absolute',
+    top: '30%',
+    left: '44%',
+  },
+  header: {
+    alignItems: 'center',
+    height: '10%', 
+    zIndex: 5,
+   
+  },
+  stopButton: {
+    borderRadius: 5,
+    minWidth: '13%',
+    alignItems: 'center',
+  },
+  stopButtonText: {
+    color: 'white',
+    fontSize: 18,
+  },
+  replayIconContainer: {
+    width: '10%', 
+    height: '95%',
+    zIndex: 4,
+  },
+  replayIcon: {
+    width: '100%', 
+    height: '100%',
+    resizeMode: 'contain',
+    alignItems: 'center',
+    
+    
+  },
+  modalBackground: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalBox: {
+    width: '80%',
+    padding: 20,
+    backgroundColor: 'white',
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  modalText: {
+    fontSize: 18,
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+  },
+  modalButton: {
+    fontSize: 18,
+    color: 'blue',
+  },
+  circle: {
+    position: 'absolute',
+    bottom: '-10%',
+    right: '40%',
+    backgroundColor: 'rgba(225, 233, 226, 0.9)',
+    width: '20%',
+    height: '20%',
+    borderRadius: '35%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  circleText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  StyleSheet, 
+  View, 
+  ImageBackground, 
+  Animated, 
+  TouchableOpacity, 
+  Text, 
+  Modal, 
+  ActivityIndicator,
+  Image,
+  Dimensions,
+  ScrollView,
+  Linking
+} from 'react-native';
+import * as ScreenOrientation from 'expo-screen-orientation';
+import { Video, Audio, ResizeMode  } from 'expo-av';
+import { transcribeSpeech } from '@/functions/transcribeSpeech';
+import { recordSpeech } from '@/functions/recordSpeech';
+import useWebFocus from '@/hooks/useWebFocus';
+import { useNavigation } from '@react-navigation/native';
+import { Link } from 'expo-router'; // Or wherever your `Link` component is from
+import { Easing } from 'react-native';
+import { useWindowDimensions } from 'react-native';
+import { Stack } from 'expo-router';
+
+
+const questions = [
+  {
+    video: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1741896992/boySleeping_pl7sly.mp4'},
+    correctAnswer: 'sleepInbed', 
+    images: [
+      { source:{ uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741299662/sleepInbed_spnvwz.png' }, label: 'sleepInbed' , number: 2, moveX: 7, moveY: 10  },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741299662/wakingUp_nzvwfl.png'}, label: 'wakingUp', number: 1, moveX: -8, moveY: 10 },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741299663/brushingTeeths_nmrjpi.png'}, label: 'brushingTeeths', number: 4, moveX: 6, moveY: -12 },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741299662/pj_u7udwi.png'}, label: 'pj', number: 3, moveX: -9, moveY: -12 },
+    ],
+  },{
+    video: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1741299358/bigAnimal_jkid6n.mp4'},
+    images: [
+    { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741300688/ant_pbcapd.png'}, label: 'ant', number: 2 , moveX: 7, moveY: 10 },
+    { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741300686/rat_wx9lmm.png'}, label: 'rat', number: 1, moveX: -8, moveY: 10 },
+    { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741300691/elephant_vpcbfp.png'}, label: 'elephant', number: 4, moveX: 6, moveY: -12 },
+    { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741300689/dog_myf46z.png'}, label: 'dog', number: 3, moveX: -9, moveY: -12  }
+     ],
+    correctAnswer: 'elephant',
+  },  
+  { 
+    video: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1741301665/cow_ea3mm0.mp4'},
+    correctAnswer: 'cow',
+    images: [
+    { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741302063/camel_wuih0h.png'}, label: 'camel', number: 2, moveX: 7, moveY: 10  },
+    { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741302058/zebra_cbch7o.png'}, label: 'zebra', number: 1,moveX: -8, moveY: 10 },
+    { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741302066/goat_lljynr.png'}, label: 'goat', number: 4 , moveX: 6, moveY: -12},
+    { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741302071/cow_lmq4jw.png'}, label: 'cow', number: 3, moveX: -9, moveY: -12   }
+   ]
+  }, 
+  { 
+   video: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1741397771/eye_xufzb7.mp4'},
+    correctAnswer: 'eye',
+    images: [
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741395082/eye_s7bzbz.png'}, label: 'eye', number: 2, moveX: 7, moveY: 10  },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741395082/nose-removebg-preview_ulc4gq.png'}, label: 'nose', number: 1, moveX: -8, moveY: 10 },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741395082/ear_usgcke.png'}, label: 'ear', number: 4 , moveX: 6, moveY: -12},
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741395081/head_fzzch9.png'}, label: 'head', number: 3, moveX: -9, moveY: -12  }
+
+
+   ]
+  },
+  {
+    video: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1741403051/cat2_ux6oim.mp4'},
+    images: [
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741396196/cat2_qkh7sx.png'}, label: 'cat2', number: 2, moveX: 7, moveY: 10  },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741396196/rabbite2_olgksc.png'}, label: 'rabbite2', number: 1, moveX: -8, moveY: 10 },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741396196/dog2_xs6qvt.png'}, label: 'dog2', number: 4 , moveX: 6, moveY: -12},
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741396196/bird_n1hqp7.png'}, label: 'bird', number: 3 , moveX: -9, moveY: -12}
+
+   ],
+    correctAnswer: 'cat2',
+  },
+  {
+    video: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1741457174/milk_fjl8e3.mp4'},
+    images: [
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741456194/glass_ep0b29.png'}, label: 'glass', number: 2, moveX: 7, moveY: 10  },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741456194/milk_ydmyu6.png'}, label: 'milk', number: 1, moveX: -8, moveY: 10 },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741456194/juice_ewcjcx.png'}, label: 'juice', number: 4 , moveX: 6, moveY: -10},
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741456194/water_wbt7eu.png'}, label: 'water', number: 3, moveX: -9, moveY: -12 }
+    ],
+    correctAnswer: 'milk',
+    },
+  {
+    video: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1741458015/baby_bx4qlr.mp4'},
+    images: [
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741457157/An_athlete_sp5oiu.png'}, label: 'athlete', number: 2, moveX: 7, moveY: 10  },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741457156/Baby_b6zpv0.png'}, label: 'Baby', number: 1, moveX: -8, moveY: 10 },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741457157/Pacifier_add3up.png'}, label: 'Pacifier', number: 4 , moveX: 6, moveY: -10},
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741457157/Approx._6_year_old_boy_y29uuu.png'}, label: 'Approx._6_year_old_boy', number: 3 , moveX: -9, moveY: -12 }
+    ],
+    correctAnswer: 'Baby',
+  },
+  {
+
+    video: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1741459199/apple_ensnj6.mp4'},
+    images: [
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741458178/Pear_xowjpb.png'}, label: 'Pear', number: 2, moveX: 7, moveY: 10  },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741458178/banana_p17cxr.png'}, label: 'banana', number: 1, moveX: -8, moveY: 10 },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741458178/An_apple_tbcqj9.png'}, label: 'apple', number: 4, moveX: 6, moveY: -10 },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741458178/Orange_s9ioao.png'}, label: 'Orange', number: 3 , moveX: -9, moveY: -12}
+    ],
+    correctAnswer: 'apple' ,
+  },
+
+  {
+    video: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1741462810/shoe_rr9a04.mp4'},
+
+    images: [
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741462976/sock_ux7nme.png'}, label: 'sock', number: 2, moveX: 7, moveY: 10  },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741462976/t_shirt_wjmh51.png'}, label: 't_shirt', number: 1, moveX: -8, moveY: 10 },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741462977/pants_sqhxaw.png'}, label: 'pants', number: 4, moveX: 6, moveY: -10 },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741462976/shoe_ypkj6g.png'}, label: 'shoe', number: 3 , moveX: -9, moveY: -12}
+    ],
+    correctAnswer: 'shoe' ,
+  },
+  {
+
+    video: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1741464305/car_di5o8q.mp4'},
+
+    images: [
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741463883/3_wheel_bike_dnzyly.png'}, label: '3_wheel_bike', number: 2, moveX: 7, moveY: 10  },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741463881/bike_ejos71.png'}, label: 'bike', number: 1, moveX: -8, moveY: 10 },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741463882/car_mkse3u.png'}, label: 'car', number: 4, moveX: 6, moveY: -10 },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741463881/motorbike_lgykog.png'}, label: 'motorbike', number: 3 , moveX: -9, moveY: -12}
+    ],
+    correctAnswer: 'car' ,
+  },
+  {
+    video: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1741464959/spoon_hukf74.mp4'},
+    images: [
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741464571/cup_htpejz.png'}, label: 'cup', number: 2, moveX: 7, moveY: 10  },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741464571/fork_dmhekz.png'}, label: 'fork', number: 1, moveX: -8, moveY: 10 },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741464571/spoon_tqhnci.png'}, label: 'spoon', number: 4, moveX: 6, moveY: -10 },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741464570/knife_booco2.png'}, label: 'knife', number: 3 , moveX: -9, moveY: -12}
+    ],
+    correctAnswer: 'spoon' ,
+  },
+  {
+    video: { uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1741465758/house_knx4lc.mp4'},
+    images: [
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741465730/tent_ydsjeb.png'}, label: 'tent', number: 2, moveX: 7, moveY: 10  },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741465277/window_ug7qor.png'}, label: 'window', number: 1, moveX: -8, moveY: 10 },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741465734/school_r5cclv.png'}, label: 'school', number: 4, moveX: 6, moveY: -10 },
+      { source: { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741465734/house_brtvrl.png'}, label: 'house', number: 3 , moveX: -9, moveY: -12}
+    ],
+    correctAnswer: 'house' ,
+  },
+  
+];  
+
+const wordToNumberMap: { [key: string]: number } = {
+  "one": 1,
+  "two": 2,
+  "three": 3,
+  "four": 4,
+};
+
+export default function App() {
+    type AnswerStatus = {
+        answer: string | null; // answer could be a string or null if no answer was selected
+        correct: boolean;
+      };
+      
+      const [answersStatus, setAnswersStatus] = useState<AnswerStatus[]>([]); // Initialize as an empty array of AnswerStatus
+
+      
+  const [transcriptionText, setTranscriptionText] = useState("");
+
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
+  const [videoSource, setVideoSource] = useState<any>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [testFinished, setTestFinished] = useState(false);
+  const [correctAnswers, setCorrectAnswers] = useState(0);
+  const [incorrectAnswers, setIncorrectAnswers] = useState(0);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  
+  const audioRecordingRef = useRef(new Audio.Recording());
+  const webAudioPermissionsRef = useRef<MediaStream | null>(null);
+  const videoRef = useRef<Video>(null);
+  const isWebFocused = useWebFocus();
+  const navigation = useNavigation();
+  const [showGrid, setShowGrid] = useState(true); // Default is showing the grid
+  const [isQuizComplete, setIsQuizComplete] = useState(false);
+  const videoScale = useRef(new Animated.Value(1)).current;
+  const videoTranslateX = useRef(new Animated.Value(0)).current;
+  const [showButtons, setShowButtons] = useState(true);
+  const { width, height } = Dimensions.get('window');
+  const fontSizePercentage = 0.018;  // 5% of the screen width
+  const dynamicFontSize = width * fontSizePercentage; 
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+// Define the type for the moveXPercent and moveYPercent parameters 
+const getMoveX = (moveXPercent: number) => (moveXPercent / 100) * screenWidth;
+const getMoveY = (moveYPercent: number) => (moveYPercent / 100) * screenHeight;
+
+const [showResultsDetails, setShowResultsDetails] = useState(false);
+
+  const [animationValues] = useState<Animated.Value[]>(
+    questions[0].images.map(() => new Animated.Value(1))
+  );
+
+  useEffect(() => {
+    const lockOrientation = async () => {
+      await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+    };
+    lockOrientation();
+    setVideoSource(questions[currentQuestionIndex].video);
+  }, [currentQuestionIndex]);
+
+  useEffect(() => {
+    if (isWebFocused) {
+      const getMicAccess = async () => {
+        const permissions = await navigator.mediaDevices.getUserMedia({ audio: true });
+        webAudioPermissionsRef.current = permissions;
+      };
+      if (!webAudioPermissionsRef.current) getMicAccess();
+    } else {
+      webAudioPermissionsRef.current?.getTracks().forEach(track => track.stop());
+      webAudioPermissionsRef.current = null;
+    }
+  }, [isWebFocused]);
+
+  const startRecording = async () => {
+    setIsRecording(true);
+    await recordSpeech(audioRecordingRef, setIsRecording, !!webAudioPermissionsRef.current);
+  };
+
+  const stopRecording = async () => {
+    setIsRecording(false);
+    setIsTranscribing(true);
+    try {
+      const speechTranscript = await transcribeSpeech(audioRecordingRef);
+      setTranscriptionText(speechTranscript || ""); // Add this line
+      processTranscription(speechTranscript || "");
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+  const clearTranscription = () => {
+    setTranscriptionText("");
+  };
+  const processTranscription = (transcription: string) => {
+    const currentQuestion = questions[currentQuestionIndex];
+    const transcriptionTrimmed = transcription.trim().toLowerCase().replace(/[^a-zA-Z0-9\s]/g, '');
+    
+    console.log('Processing transcription:', transcriptionTrimmed);
+  
+    // Extract numbers from text using regex
+    const numberWords = Object.keys(wordToNumberMap).join('|');
+    const numberRegex = new RegExp(`\\b(${numberWords}|\\d+)\\b`, 'gi');
+    const matches = transcriptionTrimmed.match(numberRegex);
+  
+    let selectedNumber: number | undefined;
+  
+    if (matches && matches.length > 0) {
+      const firstMatch = matches[0].toLowerCase();
+      selectedNumber = wordToNumberMap[firstMatch] || parseInt(firstMatch, 10);
+    }
+  
+    console.log('Selected number:', selectedNumber);
+  
+    if (!selectedNumber || isNaN(selectedNumber) || ![1, 2, 3, 4].includes(selectedNumber)) {
+      console.log('Invalid answer detected');
+      handleInvalidAnswer();
+      return;
+    }
+  
+    const selectedImage = currentQuestion.images.find(image => image.number === selectedNumber);
+    selectedImage ? handleImageSelect(selectedImage.label) : handleInvalidAnswer();
+  };
+
+  const handleInvalidAnswer = () => {
+    setVideoSource({ uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1740513244/dog_ki8bpz.mp4'});
+    setTimeout(() => setVideoSource(questions[currentQuestionIndex].video), 9000); // Reset video after 9 seconds
+  };
+  
+  useEffect(() => {
+    const loadVideo = async () => {
+      try {
+        await videoRef.current?.loadAsync(questions[currentQuestionIndex].video, {}, false);
+      } catch (error) {
+        console.error('Video loading error:', error);
+      }
+    };
+    loadVideo();
+  }, [currentQuestionIndex]); 
+  
+  const handleImageSelect = (selectedLabel: string) => {
+    const currentQuestion = questions[currentQuestionIndex];
+    
+    // Mark the answer as wrong and save it (whether it's wrong or not)
+    setSelectedImage(selectedLabel);
+  
+    // Determine if the selected label is correct
+    const isCorrect = selectedLabel === currentQuestion.correctAnswer;
+
+    // Update the answersStatus state with the current question's answer and correctness
+    const updatedAnswersStatus = [...answersStatus];
+    updatedAnswersStatus[currentQuestionIndex] = {
+      answer: selectedLabel,
+      correct: isCorrect,
+    };
+    setAnswersStatus(updatedAnswersStatus);
+  
+   if (!isCorrect) {
+      setIncorrectAnswers((prev) => prev + 1);
+    }
+    
+    // Always play the error video for now (as per your previous request)
+   // setVideoSource({ uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1741297436/goodAnswer_okursh.mp4'})
+  // setVideoSource({ uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1742479107/Untitled_1249_x_1080_px_96_bmf9bl.mp4'})
+  const videoUrls = [
+    "https://res.cloudinary.com/dniaeyw5w/video/upload/v1741297436/goodAnswer_okursh.mp4",
+    "https://res.cloudinary.com/dniaeyw5w/video/upload/v1742479107/Untitled_1249_x_1080_px_96_bmf9bl.mp4",
+  ];
+  
+  const randomVideo = videoUrls[Math.floor(Math.random() * videoUrls.length)];
+  
+  // Force state update
+  setVideoSource({ uri: randomVideo });
+  
+    handleAnimation(selectedLabel);
+    setTimeout(() => handleQuestionTransition(), 7000); 
+  };
+  
+  
+  const hidebuttons = () => setShowButtons(false);
+  
+  const moveXValue = getMoveX(19);
+  const handleQuestionTransition = async () => {
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex(prev => prev + 1);
+      setTimeout(() => {
+        resetAnimations();
+        setSelectedImage(null);
+        clearTranscription();
+      }, 10);
+    } else {
+      setShowGrid(false);
+      hidebuttons();
+      setVideoSource({ uri: 'https://res.cloudinary.com/dniaeyw5w/video/upload/v1742483368/Untitled_1249_x_1080_px_98_d5uykw.mp4' });
+  
+      Animated.parallel([
+        Animated.timing(videoScale, {
+          toValue: 1.5,
+          duration: 1000,
+          useNativeDriver: true,
+          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+        }),
+        Animated.timing(videoTranslateX, {
+          toValue: moveXValue,
+          duration: 1000,
+          useNativeDriver: true,
+        })
+      ]).start(() => setIsQuizComplete(true));
+    }
+  };
+  
+
+
+  const handleAnimation = (selectedLabel: string) => {
+    questions[currentQuestionIndex].images.forEach((image, index) => {
+      if (image.label === selectedLabel) {
+        Animated.spring(animationValues[index], {
+          toValue: 1.5,
+          useNativeDriver: true,
+        }).start();
+      } else {
+        Animated.timing(animationValues[index], {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }).start();
+      }
+    });
+  };
+
+  const resetAnimations = () => {
+    animationValues.forEach(value => {
+      Animated.timing(value, {
+        toValue: 1,
+        duration: 0,
+        useNativeDriver: true,
+      }).start();
+    });
+  };
+
+  const handleStopTest = () => {
+    setModalVisible(true);
+    setShowResultsDetails(false); // Show count first
+    videoRef.current?.stopAsync();
+  };
+
+  const handleGoToResults = () => {
+    setShowResultsDetails(true); // Toggle to show detailed results
+  };
+  const handleContinueTest = () => {
+    setTestFinished(false);
+    setModalVisible(false);
+
+  };
+
+
+  const showResults = async () => {
+    const set = 1; // Define the set number
+  
+    try {
+      const response = await fetch('http://192.168.0.171:4000/api/results', { 
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ set, answers: answersStatus }), // Include set in the body
+      });
+  
+      if (!response.ok) throw new Error('Failed to save results');
+  
+      // Open results page
+    } catch (error) {
+      console.error('Results error:', error);
+    }
+  };
+  
+
+  return ( 
+    <>
+       <Stack.Screen
+        options={{
+          headerShown: false,
+          // Add these instead of headerStatusBarHeight
+          statusBarStyle: 'light',
+          statusBarTranslucent: true,
+          statusBarHidden: true,
+          contentStyle: {
+            flex: 1,
+            paddingTop: 0,
+            marginTop: 0,
+            backgroundColor: 'transparent'
+          }
+        }}
+      />
+      
+     <View style={styles.container}>
+ <ImageBackground
+        source={{ uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036689/backgroundnew_cbi5vb.jpg' }}
+        style={styles.background}
+        resizeMode="stretch"
+      >
+ 
+ {showGrid && (
+   <View style={styles.gridContainer}>
+     {questions[currentQuestionIndex].images.map((item, index) => (
+       <TouchableOpacity
+         key={index}
+         style={[
+           styles.gridItem,
+           { borderWidth: selectedImage ? 0 : 5, borderColor: 'rgba(225, 233, 226, 0.5)' },
+         ]}
+         onPress={() => handleImageSelect(item.label)}
+         //disabled={selectedImage !== null} // Add this line to disable interaction
+
+       >
+         <Animated.Image
+           source={item.source}
+           style={[
+             styles.image,
+             {
+               transform: [
+                 { scale: animationValues[index] },
+                 { 
+                   translateX: animationValues[index].interpolate({
+                     inputRange: [1, 1.5],
+                     outputRange: [0, getMoveX(item.moveX)], // Apply percentage to moveX
+                   })
+                 },
+                 { 
+                   translateY: animationValues[index].interpolate({
+                     inputRange: [1, 1.5],
+                     outputRange: [0, getMoveY(item.moveY)], // Apply percentage to moveY
+                   })
+                 },
+               ],
+               opacity: animationValues[index],
+             },
+           ]}
+         />
+         {!selectedImage && (
+           <View style={styles.circle}>
+             <Text style={styles.circleText}>{item.number}</Text>
+           </View>
+         )}
+       </TouchableOpacity>
+     ))}
+   </View>
+ )}
+ 
+ {showButtons && <View style={styles.verticalLine} />}
+ 
+ {/* Video - always visible regardless of buttons state */}
+ <Animated.View style={[
+   styles.video,
+   {
+     transform: [
+       { scale: videoScale },
+       { translateX: videoTranslateX }
+     ]
+   }
+ ]}>
+   <Video
+     ref={videoRef}
+     source={videoSource}
+     style={styles.video}
+     useNativeControls={false}
+     resizeMode={ResizeMode.CONTAIN}
+     isLooping={false}
+     shouldPlay={true}
+   />
+ </Animated.View>
+ 
+ {isQuizComplete && (
+  <>
+    {incorrectAnswers >= 8 ? (
+      showResults(), // Call the function first
+      <Link href="/v1/ended" asChild>
+        <TouchableOpacity style={styles.startButton}>
+          <Text style={styles.startButtonText}>End Test</Text>
+        </TouchableOpacity>
+      </Link>
+    ) : (
+      showResults(), // Call the function first
+      <Link href="/v1/set2" asChild>
+        <TouchableOpacity style={styles.startButton}>
+          <Text style={styles.startButtonText}>Start Set 2</Text>
+        </TouchableOpacity>
+      </Link>
+    )}
+  </>
+)}
+ 
+     {showButtons && (
+   <View style={[styles.header, {
+     // Fix header positioning
+     position: 'absolute',
+     top: '48%', // Changed from marginTop
+     width: '100%',
+     zIndex: 3,
+     elevation: 3, // For Android
+   }]}>
+     <TouchableOpacity 
+       style={[styles.stopButton, {
+         position: 'absolute',
+         right: '67%',
+         top: '340%',
+         zIndex: 4,
+         backgroundColor: '#e1e9e2', // Ensure contrast
+         padding: 6,
+       }]} 
+       onPress={handleStopTest}
+     >
+       <Text  style={[styles.stopButtonText, { color: 'rgb(132, 154, 139)'  , fontSize: dynamicFontSize}]}>
+         Stop Test
+       </Text>
+     </TouchableOpacity>
+ 
+     <TouchableOpacity
+       style={[styles.replayIconContainer, {
+         position: 'absolute',
+         top: '200%', // Changed from 200%
+         right: '60%',
+         zIndex: 3,
+       }]}
+       onPress={() => videoRef.current?.replayAsync()}
+     >
+       <Image
+        source={{ uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036697/replay_iwjla6.png' }}
+        style={[styles.replayIcon, {
+           width: '100%',
+           height: '100%',
+           resizeMode: 'contain',
+         }]}
+       />
+     </TouchableOpacity>
+   </View>
+ )}
+ 
+ {showButtons && (
+   <View style={{
+   position: 'absolute', // Parent container for reference
+   right: '73%',
+   bottom: '22%',
+   width: '12%', // Match image width percentage
+   height: '12%', // Match image height percentage
+   zIndex: 3,
+ }}>
+     <TouchableOpacity
+       onPressIn={startRecording}
+       onPressOut={stopRecording}
+       disabled={isRecording || isTranscribing}
+       style={{ opacity: isRecording || isTranscribing ? 0.5 : 1 }}
+     >
+       <Image 
+         source={isRecording || isTranscribing 
+          ? { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1741036696/open_cmubmo.png' }
+          : { uri: 'https://res.cloudinary.com/dniaeyw5w/image/upload/v1742517802/ba81b7d3-a5f0-4d95-a7ae-0b964b13fa5f.png' }}
+           style={{     
+             width: '100%', // Use 100% of parent container
+             height: '100%',
+             resizeMode: 'contain',
+           }}
+       />
+       {(isRecording || isTranscribing) && (
+         <ActivityIndicator style={styles.micActivity} color="white" />
+       )}
+     </TouchableOpacity>
+   </View>
+ )}
+
+{showButtons && (
+  <Text style={styles.footerText}>
+{'\n'}             Set 1
+{'\n'} Question {currentQuestionIndex + 1} of {questions.length} 
+             
+  </Text>
+  
+)}  
+        <View style={styles.header}>
+
+
+
+<Modal visible={modalVisible} transparent={true} animationType="fade">
+  <View style={styles.modalBackground}>
+    <View style={styles.modalBox}>
+      <Text style={styles.modalText}>
+        {showResultsDetails ? "Detailed Results" : `You answered ${answersStatus.filter(status => status?.answer).length} out of ${questions.length} questions`}
+      </Text>
+
+      <View style={styles.resultsContainer}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+          {showResultsDetails ? (
+            questions.map((_, index) => {
+              const status = answersStatus[index];
+              const hasAnswer = status?.answer;
+              
+              return (
+                <View key={index} style={styles.resultItem}>
+                  <Text style={styles.resultText}>Q{index + 1}:</Text>
+                  <Text style={[
+                    styles.statusText,
+                    hasAnswer ? (status.correct ? styles.correct : styles.wrong) : styles.pending
+                  ]}>
+                    {hasAnswer ? (status.correct ? '✓' : '✕') : '-'}
+                  </Text>
+                </View>
+              );
+            })
+          ) : (
+            <Text style={styles.resultText}>
+              Click "Results" to see detailed answers
+            </Text>
+          )}
+        </ScrollView>
+      </View>
+
+      <View style={styles.modalButtons}>
+        {showResultsDetails ? (
+          <TouchableOpacity onPress={() => setShowResultsDetails(false)}>
+            <Text style={styles.modalButton}>Back</Text>
+          </TouchableOpacity>
+        ) : (
+          <>
+            <TouchableOpacity onPress={() => setShowResultsDetails(true)}>
+              <Text style={styles.modalButton}>Results</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleContinueTest}>
+              <Text style={styles.modalButton}>Continue</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+    </View>
+  </View>
+</Modal>
+
+        </View>
+      </ImageBackground>
+    </View>
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    
+  },
+  correct: {
+    color: 'green',
+  },
+  wrong: {
+    color: 'red',
+  },
+  pending: {
+    color: 'gray',
+  },
+  resultsContainer: {
+    maxHeight: '55%',
+    width: '100%',
+  },
+  resultItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+  },
+  resultText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginLeft: 10,
+  },
+  statusText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  startButton: {
+    position: 'absolute',
+    bottom: '14%',
+    alignSelf: 'center',
+    backgroundColor: 'rgb(225, 233, 226)',
+    padding: '2%',
+    borderRadius: 25,
+    width: '30%',
+    alignItems: 'center',
+    zIndex: 2,
+    left: '36%'
+  },
+  startButtonText: {
+    color: 'rgb(132, 154, 139)',
+    fontSize: 20,
+    fontWeight: 'bold',
+    
+  },
+  background: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  gridContainer: {
+    flex: 1,
+    position: 'absolute',
+    top: '15%',
+    left: '47%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '42%',  
+    height: '20%',
+    zIndex: 3,
+  },
+  gridItem: {
+    width: '45%',
+    height: '160%',
+    marginVertical: 15,
+    marginHorizontal: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 35,
+  },
+  image: {
+    width: '80%',
+    height: '80%',
+    resizeMode: 'contain',
+  },
+  video: {
+    width: '60%',
+    height: '60%',
+    position: 'absolute',
+    left: '6%',
+    top: '15%',
+    zIndex: 1,
+  },
+
+  micActivity: {
+    position: 'absolute',
+  },
+  mic : {
+    left: '8%',
+    top: '65%',
+    zIndex: 3,
+  },
+  footerText: {
+    position: 'absolute',
+    bottom: '93%',
+    left: '87%',
+    fontSize: 18,
+    color: 'rgba(188, 194, 188, 0.9)',
+  },
+  verticalLine: {
+    borderRightWidth: 5,
+    borderRightColor: 'rgba(225, 233, 226, 0.5)',
+    height: '50%',
+    position: 'absolute',
+    top: '30%',
+    left: '44%',
+  },
+  header: {
+    alignItems: 'center',
+    // Added
+    height: '10%', // Adjust based on needs
+    zIndex: 5,
+   
+  },
+  stopButton: {
+    borderRadius: 5,
+    // Added
+    minWidth: '13%',
+    alignItems: 'center',
+  },
+  stopButtonText: {
+    color: 'white',
+    fontSize: 18,
+  },
+  replayIconContainer: {
+    width: '10%', // Add dimensions
+    height: '95%',
+    zIndex: 4,
+  },
+  replayIcon: {
+    width: '100%', // Use 100% of parent container
+    height: '100%',
+    resizeMode: 'contain',
+    alignItems: 'center',
+    
+    
+  },
+  modalBackground: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalBox: {
+    width: '80%', // Adjust width to be more reasonable for different screen sizes
+    maxWidth: 400, // Optionally limit the max width for larger screens
+    padding: 20,
+    backgroundColor: 'white',
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'space-between', // Ensure elements inside are spaced properly
+  },
+  modalText: {
+    fontSize: 18,
+    textAlign: 'center', // To make sure text is centered within the modal
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+    marginTop: 20, // Add some space above the buttons
+  },
+  modalButton: {
+    fontSize: 18,
+    color: 'rgba(168, 172, 168, 0.9)',
+  },
+  circle: {
+    position: 'absolute',
+    bottom: '-10%',
+    right: '40%',
+    backgroundColor: 'rgba(225, 233, 226, 0.9)',
+    width: '20%',
+    height: '20%',
+    borderRadius: '35%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  circleText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+});
